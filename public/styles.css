@@ -1,0 +1,63 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 18% -10%, #1b2436 0%, #0a0c11 55%, #07080b 100%);
+  color: #e7eaf1;
+  font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 880px; margin: 0 auto; padding: 72px 22px 96px; }
+.eyebrow {
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #7cc4ff;
+  margin-bottom: 14px;
+}
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; margin: 0 0 14px; letter-spacing: -.02em; }
+h2 { font-size: 17px; margin: 0 0 8px; }
+.section { margin: 48px 0 12px; font-size: 20px; }
+.lede { font-size: 18px; color: #b8c0d0; max-width: 64ch; margin: 0 0 32px; }
+.card {
+  background: linear-gradient(180deg, rgba(28, 34, 46, .9), rgba(17, 20, 27, .9));
+  border: 1px solid #242b3a;
+  border-radius: 16px;
+  padding: 22px;
+  margin: 0 0 16px;
+}
+.card p { margin: 0 0 10px; color: #b8c0d0; }
+.note { font-size: 13px; color: #8b93a7 !important; }
+.button {
+  display: inline-block;
+  margin: 4px 0 10px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  background: #0a66c2;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.button:hover { background: #0b74dc; }
+code {
+  background: #0b0e14;
+  border: 1px solid #263043;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #dfe6f5;
+}
+pre {
+  margin: 10px 0;
+  padding: 14px;
+  overflow-x: auto;
+  background: #0b0e14;
+  border: 1px solid #263043;
+  border-radius: 10px;
+}
+pre code { border: 0; background: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid #1e2532; vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8b93a7; }
+td { font-size: 14px; color: #b8c0d0; }
+td:first-child { white-space: nowrap; }

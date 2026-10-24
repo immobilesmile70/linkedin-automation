@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LinkedIn Auto Poster</title>
+  <meta name="description" content="Scheduled LinkedIn posts written by OpenRouter and illustrated by your image worker." />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Vercel Cron · OpenRouter · Image worker</div>
+    <h1>LinkedIn Auto Poster</h1>
+    <p class="lede">
+      Once a day Vercel calls <code>/api/cron</code>. That run writes a post with the OpenRouter model,
+      renders the matching illustration through your image endpoint, then publishes both to LinkedIn.
+    </p>
+
+    <div class="card">
+      <h2>1. Connect LinkedIn</h2>
+      <p>Authorises your member account and prints the env values the cron job needs.</p>
+      <a class="button" href="/api/auth/login">Connect LinkedIn</a>
+      <p class="note">Needs the <strong>Share on LinkedIn</strong> product (scope <code>w_member_social</code>) and
+        <strong>Sign In with LinkedIn using OpenID Connect</strong> on your LinkedIn app.</p>
+    </div>
+
+    <div class="card">
+      <h2>2. Test without publishing</h2>
+      <p>Generates the text and image, then stops before touching LinkedIn.</p>
+      <pre><code>curl -H "Authorization: Bearer $CRON_SECRET" \
+  "$PUBLIC_BASE_URL/api/cron?dry=1"</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>3. Let the schedule run</h2>
+      <p>The schedule lives in <code>vercel.json</code>:</p>
+      <pre><code>"crons": [{ "path": "/api/cron", "schedule": "0 9 * * *" }]</code></pre>
+      <p class="note">Hobby plans only allow one cron run per day. Vercel sends
+        <code>Authorization: Bearer $CRON_SECRET</code> automatically when that variable exists.</p>
+    </div>
+
+    <h2 class="section">Environment variables</h2>
+    <table>
+      <thead><tr><th>Name</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td><code>CRON_SECRET</code></td><td>Long random string; guards <code>/api/cron</code>.</td></tr>
+        <tr><td><code>OPENROUTER_API_KEY</code></td><td>Key for the text model.</td></tr>
+        <tr><td><code>OPENROUTER_MODEL</code></td><td>Model slug, e.g. <code>google/gemini-2.5-flash</code>.</td></tr>
+        <tr><td><code>IMAGE_API_URL</code></td><td>Your image worker URL (the one from <code>automation.py</code>).</td></tr>
+        <tr><td><code>IMAGE_API_KEY</code></td><td>Bearer key for that worker.</td></tr>
+        <tr><td><code>LINKEDIN_CLIENT_ID</code></td><td>From the LinkedIn app.</td></tr>
+        <tr><td><code>LINKEDIN_CLIENT_SECRET</code></td><td>From the LinkedIn app.</td></tr>
+        <tr><td><code>LINKEDIN_REFRESH_TOKEN</code></td><td>Printed by the connect flow (preferred).</td></tr>
+        <tr><td><code>LINKEDIN_ACCESS_TOKEN</code></td><td>Fallback when no refresh token is issued.</td></tr>
+        <tr><td><code>LINKEDIN_PERSON_URN</code></td><td><code>urn:li:person:…</code>, saves a lookup per run.</td></tr>
+        <tr><td><code>LINKEDIN_API_VERSION</code></td><td>Versioned API release, e.g. <code>202510</code>.</td></tr>
+        <tr><td><code>POST_TOPIC</code>, <code>POST_TONE</code>, <code>POST_AUDIENCE</code></td><td>Optional writing controls.</td></tr>
+        <tr><td><code>PUBLIC_BASE_URL</code></td><td>Optional, e.g. <code>https://your-app.vercel.app</code>.</td></tr>
+        <tr><td><code>LINKEDIN_REDIRECT_URI</code></td><td>Optional exact callback URL override.</td></tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

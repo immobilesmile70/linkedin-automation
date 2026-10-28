@@ -78,7 +78,7 @@ cron job can run only once per day, at some point inside the scheduled hour.
 | `LINKEDIN_REFRESH_TOKEN` | yes* | Printed by the connect flow; exchanged for an access token each run. |
 | `LINKEDIN_ACCESS_TOKEN` | yes* | Fallback when LinkedIn issues no refresh token. |
 | `LINKEDIN_PERSON_URN` | optional | `urn:li:person:…`; skips one API call per run. |
-| `LINKEDIN_API_VERSION` | optional | Versioned API release, `YYYYMM`, default `202510`. |
+| `LINKEDIN_API_VERSION` | optional | Versioned API release, `YYYYMM` (not `YYYYMMDD`), default `202610`. |
 | `POST_TOPIC` | optional | What the post should be about. Has a sensible default. |
 | `POST_TONE` | optional | Writing tone. |
 | `POST_AUDIENCE` | optional | Who reads it. |
@@ -108,9 +108,11 @@ cron job can run only once per day, at some point inside the scheduled hour.
 - **Little-text escaping**: LinkedIn truncates commentary at unescaped reserved characters (`(` `)` `[`
   `]` `{` `}` `<` `>` `@` `|` `~` `_` `*`), so `lib/linkedin.js` backslash-escapes them before
   posting. The backslashes are consumed by LinkedIn and do not appear in the published post.
-- **API version**: the job uses the versioned `/rest/posts` and `/rest/images` APIs. LinkedIn supports
-  each `LinkedIn-Version` for about a year; if a run fails with a 426, set `LINKEDIN_API_VERSION` to a
-  currently supported release and redeploy.
+- **API version**: the job uses the versioned `/rest/posts` and `/rest/images` APIs. The header must
+  be exactly `YYYYMM` (`202510`, not `20251001`); `lib/linkedin.js` normalizes sloppy input and falls
+  back to the pinned default when it cannot. LinkedIn supports each release for about a year, so if a
+  run fails with a 426, set `LINKEDIN_API_VERSION` to a newer release (latest at build time: `202610`)
+  and redeploy.
 - **Reasoning models**: models like `google/gemini-3.8-flash` always think before answering, and
   those thinking tokens are billed against `max_tokens`. With a small budget the JSON reply is cut off
   mid-string, which shows up as `finish_reason=length` and a `did not return usable JSON` error. The

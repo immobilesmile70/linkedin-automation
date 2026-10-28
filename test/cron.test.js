@@ -50,7 +50,7 @@ function setEnv(overrides = {}) {
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-function createBackend({ image, openrouter, token, post } = {}) {
+function createBackend({ image, openrouter, token, post, register } = {}) {
   const calls = {
     openrouter: [],
     image: [],
@@ -111,6 +111,7 @@ function createBackend({ image, openrouter, token, post } = {}) {
 
     if (url === 'https://api.linkedin.com/rest/images?action=initializeUpload') {
       calls.register.push({ body: JSON.parse(init.body), headers: init.headers });
+      if (register) return register();
       return json({
         value: {
           uploadUrl: 'https://media.licdn.test/upload/42',
@@ -363,7 +364,7 @@ test('publishes an image post using a refreshed token', async () => {
     backend.calls.register[0].headers.Authorization,
     'Bearer fresh-access-token-2',
   );
-  assert.equal(backend.calls.register[0].headers['LinkedIn-Version'], '202510');
+  assert.equal(backend.calls.register[0].headers['LinkedIn-Version'], '202610');
   assert.equal(backend.calls.register[0].headers['X-Restli-Protocol-Version'], '2.0.0');
 
   assert.equal(backend.calls.upload.length, 1);
@@ -383,7 +384,44 @@ test('publishes an image post using a refreshed token', async () => {
   assert.ok(post.commentary.includes('\\(and big budgets\\)'), post.commentary);
   assert.equal(post.content.media.id, 'urn:li:image:42');
   assert.equal(post.content.media.altText, 'A tiny workshop bench with one glowing tool');
+  assert.equal(backend.calls.post[0].headers['LinkedIn-Version'], '202610');
+});
+
+test('normalizes an eight-digit LinkedIn version to YYYYMM', async () => {
+  setEnv({ LINKEDIN_API_VERSION: '20251001' });
+  const backend = createBackend();
+
+  const res = await run(backend);
+
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.equal(res.body.apiVersion, '202510');
+  assert.equal(backend.calls.register[0].headers['LinkedIn-Version'], '202510');
   assert.equal(backend.calls.post[0].headers['LinkedIn-Version'], '202510');
+});
+
+test('falls back to the pinned release for an unusable version', async () => {
+  setEnv({ LINKEDIN_API_VERSION: 'november' });
+  const backend = createBackend();
+
+  const res = await run(backend);
+
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.equal(res.body.apiVersion, '202610');
+  assert.equal(backend.calls.register[0].headers['LinkedIn-Version'], '202610');
+});
+
+test('names the rejected version when LinkedIn returns 426', async () => {
+  setEnv({ LINKEDIN_API_VERSION: '202401' });
+  const backend = createBackend({
+    register: () => json({ message: 'Requested version 202401 is not active' }, 426),
+  });
+
+  const res = await run(backend);
+
+  assert.equal(res.statusCode, 502);
+  assert.match(res.body.error, /LinkedIn rejected LinkedIn-Version: 202401/);
+  assert.match(res.body.error, /latest as of build: 202610/);
+  assert.equal(backend.calls.post.length, 0);
 });
 
 test('falls back to a static access token and looks up the person urn', async () => {

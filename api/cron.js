@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   try {
     const result = await runCron({ env: process.env, dryRun });
     console.log(
-      `[cron] ${dryRun ? 'dry run' : 'published'} topic="${result.text.slice(0, 60)}..." postId=${result.postId || 'n/a'}`,
+      `[cron] ${dryRun ? 'dry run' : 'published'} model=${result.model} postId=${result.postId || 'n/a'} topic="${result.text.slice(0, 60)}..."`,
     );
     res.status(200).json({ ok: true, ...result });
   } catch (err) {

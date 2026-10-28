@@ -68,7 +68,9 @@ cron job can run only once per day, at some point inside the scheduled hour.
 | --- | --- | --- |
 | `CRON_SECRET` | yes | Bearer secret that guards `/api/cron` (use `openssl rand -hex 32`). |
 | `OPENROUTER_API_KEY` | yes | OpenRouter key. |
-| `OPENROUTER_MODEL` | recommended | Model slug, e.g. `google/gemini-2.5-flash`. |
+| `OPENROUTER_MODEL` | recommended | Model slug, e.g. `google/gemini-3.8-flash`. |
+| `OPENROUTER_MAX_TOKENS` | optional | Completion budget, default `4000`. Reasoning models spend part of it on thinking, so a small value truncates the JSON. |
+| `OPENROUTER_REASONING_EFFORT` | optional | `high`/`medium`/`low`, default `low`. Kicks in only for reasoning models; `none` turns it off where the model allows. |
 | `IMAGE_API_URL` | yes | Your image worker URL (the `worker_url` from `automation.py`). |
 | `IMAGE_API_KEY` | yes | Bearer key sent to the image worker. |
 | `LINKEDIN_CLIENT_ID` | yes | From the LinkedIn app. |
@@ -109,8 +111,13 @@ cron job can run only once per day, at some point inside the scheduled hour.
 - **API version**: the job uses the versioned `/rest/posts` and `/rest/images` APIs. LinkedIn supports
   each `LinkedIn-Version` for about a year; if a run fails with a 426, set `LINKEDIN_API_VERSION` to a
   currently supported release and redeploy.
+- **Reasoning models**: models like `google/gemini-3.8-flash` always think before answering, and
+  those thinking tokens are billed against `max_tokens`. With a small budget the JSON reply is cut off
+  mid-string, which shows up as `finish_reason=length` and a `did not return usable JSON` error. The
+  default budget is 4000 with `reasoning.effort: low`, and a failed parse is retried once with double
+  the budget before the run gives up.
 - **Failures**: config, OpenRouter, image and LinkedIn errors return JSON with `ok: false` and a
-  message; check Vercel → Logs for `[cron] failed`.
+  message naming the model, `finish_reason` and token usage; check Vercel → Logs for `[cron] failed`.
 - **Image formats**: the worker may return raw bytes, `{ b64_json | image | base64 }`, or `{ url }`.
 
 ## Local development

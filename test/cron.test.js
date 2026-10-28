@@ -8,6 +8,8 @@ const ENV_KEYS = [
   'CRON_SECRET',
   'OPENROUTER_API_KEY',
   'OPENROUTER_MODEL',
+  'OPENROUTER_MAX_TOKENS',
+  'OPENROUTER_REASONING_EFFORT',
   'IMAGE_API_URL',
   'IMAGE_API_KEY',
   'LINKEDIN_CLIENT_ID',
@@ -244,6 +246,84 @@ test('dry run generates the post and image without calling LinkedIn', async () =
   assert.equal(backend.calls.token.length, 0);
   assert.equal(backend.calls.register.length, 0);
   assert.equal(backend.calls.post.length, 0);
+});
+
+const TRUNCATED = {
+  model: 'google/gemini-3.8-flash',
+  usage: { completion_tokens: 900, completion_tokens_details: { reasoning_tokens: 780 } },
+  choices: [
+    {
+      finish_reason: 'length',
+      message: {
+        content:
+          '{"text": "I spent the last two months re-architecting an internal web app around streaming LLM outputs. Here ',
+      },
+    },
+  ],
+};
+
+const COMPLETE = {
+  model: 'google/gemini-3.8-flash',
+  usage: { completion_tokens: 940, completion_tokens_details: { reasoning_tokens: 600 } },
+  choices: [
+    {
+      finish_reason: 'stop',
+      message: {
+        content: JSON.stringify({
+          text: 'Recovered post about streaming outputs.',
+          image_prompt: 'A terminal window glowing in a dark room',
+        }),
+      },
+    },
+  ],
+};
+
+test('gives reasoning models a token budget big enough for the JSON', async () => {
+  setEnv({ OPENROUTER_MODEL: 'google/gemini-3.8-flash' });
+  const backend = createBackend();
+
+  const res = await run(backend, { url: '/api/cron?dry=1' });
+
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  const body = backend.calls.openrouter[0].body;
+  assert.ok(body.max_tokens >= 4000, `max_tokens=${body.max_tokens}`);
+  assert.equal(body.response_format.type, 'json_object');
+  assert.deepEqual(body.reasoning, { effort: 'low', exclude: true });
+});
+
+test('retries with a larger budget when the reply is cut off', async () => {
+  setEnv({ OPENROUTER_MODEL: 'google/gemini-3.8-flash' });
+  let calls = 0;
+  const backend = createBackend({
+    openrouter: () => {
+      calls += 1;
+      return json(calls === 1 ? TRUNCATED : COMPLETE);
+    },
+  });
+
+  const res = await run(backend, { url: '/api/cron?dry=1' });
+
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.match(res.body.text, /Recovered post/);
+  assert.equal(backend.calls.openrouter.length, 2);
+  assert.ok(
+    backend.calls.openrouter[1].body.max_tokens > backend.calls.openrouter[0].body.max_tokens,
+  );
+  assert.equal(backend.calls.openrouter[1].body.messages.length, 4);
+  assert.equal(res.body.postId, undefined);
+});
+
+test('explains truncation when the JSON never completes', async () => {
+  setEnv({ OPENROUTER_MODEL: 'google/gemini-3.8-flash' });
+  const backend = createBackend({ openrouter: () => json(TRUNCATED) });
+
+  const res = await run(backend, { url: '/api/cron?dry=1' });
+
+  assert.equal(res.statusCode, 502);
+  assert.match(res.body.error, /finish_reason=length/);
+  assert.match(res.body.error, /reasoning_tokens=780/);
+  assert.match(res.body.error, /OPENROUTER_MAX_TOKENS/);
+  assert.equal(backend.calls.image.length, 0);
 });
 
 test('publishes an image post using a refreshed token', async () => {

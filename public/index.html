@@ -45,7 +45,9 @@
       <tbody>
         <tr><td><code>CRON_SECRET</code></td><td>Long random string; guards <code>/api/cron</code>.</td></tr>
         <tr><td><code>OPENROUTER_API_KEY</code></td><td>Key for the text model.</td></tr>
-        <tr><td><code>OPENROUTER_MODEL</code></td><td>Model slug, e.g. <code>google/gemini-2.5-flash</code>.</td></tr>
+        <tr><td><code>OPENROUTER_MODEL</code></td><td>Model slug, e.g. <code>google/gemini-3.8-flash</code>.</td></tr>
+        <tr><td><code>OPENROUTER_MAX_TOKENS</code></td><td>Optional completion budget, default <code>4000</code>. Reasoning models spend part of it on thinking.</td></tr>
+        <tr><td><code>OPENROUTER_REASONING_EFFORT</code></td><td>Optional <code>high</code>/<code>medium</code>/<code>low</code>, default <code>low</code>.</td></tr>
         <tr><td><code>IMAGE_API_URL</code></td><td>Your image worker URL (the one from <code>automation.py</code>).</td></tr>
         <tr><td><code>IMAGE_API_KEY</code></td><td>Bearer key for that worker.</td></tr>
         <tr><td><code>LINKEDIN_CLIENT_ID</code></td><td>From the LinkedIn app.</td></tr>

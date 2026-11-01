@@ -1,0 +1,62 @@
+import getpass
+import time
+import requests
+from io import BytesIO
+from PIL import Image
+
+def main():
+    print("--- 100% Cache-Busted Pollinations.ai FLUX Engine ---")
+    
+    api_key = getpass.getpass("Enter your Pollinations API Key: ").strip()
+    if not api_key:
+        print("API Key cannot be blank.")
+        return
+        
+    prompt = input("\nEnter your image prompt: ").strip()
+    if not prompt:
+        print("Prompt cannot be empty.")
+        return
+
+    # Cleanly convert special formatting for the URL path string
+    encoded_prompt = requests.utils.quote(prompt)
+    
+    # Generate a completely dynamic timestamp string to force a unique request
+    unique_timestamp = str(int(time.time() * 1000))
+    
+    # Base endpoint structure
+    url = f"https://gen.pollinations.ai/image/{encoded_prompt}"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    # The cachebust field ensures the server renders the prompt completely fresh
+    params = {
+        "width": 1024,
+        "height": 1024,
+        "model": "flux",
+        "enhance": "false",
+        "nologo": "true",
+        "cachebust": unique_timestamp  
+    }
+    
+    print(f"\nSending fresh generation pipeline for: '{prompt}'...")
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            image = Image.open(BytesIO(response.content))
+            output_filename = "fresh_flux_output.png"
+            image.save(output_filename)
+            print(f"Success! Fresh image generated and saved to {output_filename}")
+            image.show()
+        elif response.status_code == 401:
+            print("Authentication Failed: Check your API bearer token profile.")
+        else:
+            print(f"Server Error Status: {response.status_code}")
+            
+    except Exception as e:
+        print(f"An error occurred while connecting: {e}")
+
+if __name__ == "__main__":
+    main()

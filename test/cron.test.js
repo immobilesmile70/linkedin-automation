@@ -6,10 +6,9 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3
 
 const ENV_KEYS = [
   'CRON_SECRET',
-  'OPENROUTER_API_KEY',
-  'OPENROUTER_MODEL',
-  'OPENROUTER_MAX_TOKENS',
-  'OPENROUTER_REASONING_EFFORT',
+  'GEMINI_API_KEY',
+  'GEMINI_MODEL',
+  'GEMINI_MAX_TOKENS',
   'IMAGE_API_URL',
   'IMAGE_API_KEY',
   'LINKEDIN_CLIENT_ID',
@@ -28,8 +27,8 @@ const ENV_KEYS = [
 
 const BASE_ENV = {
   CRON_SECRET: 'test-cron-secret',
-  OPENROUTER_API_KEY: 'test-openrouter-key',
-  OPENROUTER_MODEL: 'test/model',
+  GEMINI_API_KEY: 'test-gemini-key',
+  GEMINI_MODEL: 'gemini-3.8-flash',
   IMAGE_API_URL: 'https://image-worker.test/generate',
   IMAGE_API_KEY: 'test-image-key',
   LINKEDIN_CLIENT_ID: 'test-client-id',
@@ -50,9 +49,9 @@ function setEnv(overrides = {}) {
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-function createBackend({ image, openrouter, token, post, register } = {}) {
+function createBackend({ image, gemini, token, post, register } = {}) {
   const calls = {
-    openrouter: [],
+    gemini: [],
     image: [],
     token: [],
     userinfo: [],
@@ -72,20 +71,20 @@ function createBackend({ image, openrouter, token, post, register } = {}) {
         : new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } });
     }
 
-    if (url === 'https://openrouter.ai/api/v1/chat/completions') {
-      calls.openrouter.push({ body: JSON.parse(init.body), headers: init.headers });
-      return openrouter
-        ? openrouter()
+    if (url === 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent') {
+      calls.gemini.push({ body: JSON.parse(init.body), headers: init.headers });
+      return gemini
+        ? gemini()
         : json({
-            model: 'test/model',
-            usage: { total_tokens: 321 },
-            choices: [
+            modelVersion: 'gemini-3.8-flash',
+            usageMetadata: { totalTokenCount: 321 },
+            candidates: [
               {
-                message: {
-                  content: JSON.stringify({
+                content: {
+                  parts: [{ text: JSON.stringify({
                     text: 'Small tools beat big plans (and big budgets).\n\nI shipped a 40-line cron job this week and it already pays for itself.\n\n#automation',
                     image_prompt: 'A tiny workshop bench with one glowing tool',
-                  }),
+                  }) }],
                 },
               },
             ],
@@ -197,7 +196,7 @@ test('rejects a request without the cron secret', async () => {
   const wrong = await run(backend, { headers: { authorization: 'Bearer nope' } });
   assert.equal(wrong.statusCode, 401);
 
-  assert.equal(backend.calls.openrouter.length, 0);
+  assert.equal(backend.calls.gemini.length, 0);
 });
 
 test('rejects non-GET methods', async () => {
@@ -215,12 +214,12 @@ test('rejects non-GET methods', async () => {
 });
 
 test('names the missing environment variable', async () => {
-  setEnv({ OPENROUTER_API_KEY: null });
+  setEnv({ GEMINI_API_KEY: null });
   const backend = createBackend();
 
   const res = await run(backend);
   assert.equal(res.statusCode, 500);
-  assert.match(res.body.error, /OPENROUTER_API_KEY/);
+  assert.match(res.body.error, /GEMINI_API_KEY/);
   assert.equal(backend.calls.image.length, 0);
 });
 
@@ -238,9 +237,9 @@ test('dry run generates the post and image without calling LinkedIn', async () =
   assert.equal(res.body.image.bytes, PNG.length);
   assert.equal(res.body.image.contentType, 'image/png');
 
-  assert.equal(backend.calls.openrouter.length, 1);
-  assert.equal(backend.calls.openrouter[0].body.model, 'test/model');
-  assert.equal(backend.calls.openrouter[0].body.messages[1].content.includes('Shipping small automation tools'), true);
+  assert.equal(backend.calls.gemini.length, 1);
+  assert.equal(backend.calls.gemini[0].headers['x-goog-api-key'], 'test-gemini-key');
+  assert.equal(backend.calls.gemini[0].body.contents[0].parts[0].text.includes('Shipping small automation tools'), true);
   assert.equal(backend.calls.image[0].body.prompt, 'A tiny workshop bench with one glowing tool');
   assert.equal(backend.calls.image[0].headers.Authorization, 'Bearer test-image-key');
 
@@ -250,53 +249,47 @@ test('dry run generates the post and image without calling LinkedIn', async () =
 });
 
 const TRUNCATED = {
-  model: 'google/gemini-3.8-flash',
-  usage: { completion_tokens: 900, completion_tokens_details: { reasoning_tokens: 780 } },
-  choices: [
+  modelVersion: 'gemini-3.8-flash',
+  usageMetadata: { candidatesTokenCount: 900, thoughtsTokenCount: 780 },
+  candidates: [
     {
-      finish_reason: 'length',
-      message: {
-        content:
-          '{"text": "I spent the last two months re-architecting an internal web app around streaming LLM outputs. Here ',
-      },
+      finishReason: 'MAX_TOKENS',
+      content: { parts: [{ text: '{"text": "I spent the last two months re-architecting an internal web app around streaming LLM outputs. Here ' }] },
     },
   ],
 };
 
 const COMPLETE = {
-  model: 'google/gemini-3.8-flash',
-  usage: { completion_tokens: 940, completion_tokens_details: { reasoning_tokens: 600 } },
-  choices: [
+  modelVersion: 'gemini-3.8-flash',
+  usageMetadata: { candidatesTokenCount: 940, thoughtsTokenCount: 600 },
+  candidates: [
     {
-      finish_reason: 'stop',
-      message: {
-        content: JSON.stringify({
-          text: 'Recovered post about streaming outputs.',
-          image_prompt: 'A terminal window glowing in a dark room',
-        }),
-      },
+      finishReason: 'STOP',
+      content: { parts: [{ text: JSON.stringify({
+        text: 'Recovered post about streaming outputs.',
+        image_prompt: 'A terminal window glowing in a dark room',
+      }) }] },
     },
   ],
 };
 
 test('gives reasoning models a token budget big enough for the JSON', async () => {
-  setEnv({ OPENROUTER_MODEL: 'google/gemini-3.8-flash' });
+  setEnv({ GEMINI_MODEL: 'gemini-3.8-flash' });
   const backend = createBackend();
 
   const res = await run(backend, { url: '/api/cron?dry=1' });
 
   assert.equal(res.statusCode, 200, JSON.stringify(res.body));
-  const body = backend.calls.openrouter[0].body;
-  assert.ok(body.max_tokens >= 4000, `max_tokens=${body.max_tokens}`);
-  assert.equal(body.response_format.type, 'json_object');
-  assert.deepEqual(body.reasoning, { effort: 'low', exclude: true });
+  const body = backend.calls.gemini[0].body;
+  assert.ok(body.generationConfig.maxOutputTokens >= 4000);
+  assert.equal(body.generationConfig.responseMimeType, 'application/json');
 });
 
 test('retries with a larger budget when the reply is cut off', async () => {
-  setEnv({ OPENROUTER_MODEL: 'google/gemini-3.8-flash' });
+  setEnv({ GEMINI_MODEL: 'gemini-3.8-flash' });
   let calls = 0;
   const backend = createBackend({
-    openrouter: () => {
+    gemini: () => {
       calls += 1;
       return json(calls === 1 ? TRUNCATED : COMPLETE);
     },
@@ -306,24 +299,24 @@ test('retries with a larger budget when the reply is cut off', async () => {
 
   assert.equal(res.statusCode, 200, JSON.stringify(res.body));
   assert.match(res.body.text, /Recovered post/);
-  assert.equal(backend.calls.openrouter.length, 2);
+  assert.equal(backend.calls.gemini.length, 2);
   assert.ok(
-    backend.calls.openrouter[1].body.max_tokens > backend.calls.openrouter[0].body.max_tokens,
+    backend.calls.gemini[1].body.generationConfig.maxOutputTokens > backend.calls.gemini[0].body.generationConfig.maxOutputTokens,
   );
-  assert.equal(backend.calls.openrouter[1].body.messages.length, 4);
+  assert.equal(backend.calls.gemini[1].body.contents.length, 3);
   assert.equal(res.body.postId, undefined);
 });
 
 test('explains truncation when the JSON never completes', async () => {
-  setEnv({ OPENROUTER_MODEL: 'google/gemini-3.8-flash' });
-  const backend = createBackend({ openrouter: () => json(TRUNCATED) });
+  setEnv({ GEMINI_MODEL: 'gemini-3.8-flash' });
+  const backend = createBackend({ gemini: () => json(TRUNCATED) });
 
   const res = await run(backend, { url: '/api/cron?dry=1' });
 
   assert.equal(res.statusCode, 502);
-  assert.match(res.body.error, /finish_reason=length/);
+  assert.match(res.body.error, /finish_reason=MAX_TOKENS/);
   assert.match(res.body.error, /reasoning_tokens=780/);
-  assert.match(res.body.error, /OPENROUTER_MAX_TOKENS/);
+  assert.match(res.body.error, /GEMINI_MAX_TOKENS/);
   assert.equal(backend.calls.image.length, 0);
 });
 
@@ -485,7 +478,7 @@ test('accepts a base64 JSON image response', async () => {
 test('reports text model failures and publishes nothing', async () => {
   setEnv();
   const backend = createBackend({
-    openrouter: () => json({ error: { message: 'rate limited' } }, 429),
+    gemini: () => json({ error: { message: 'rate limited' } }, 429),
   });
 
   const res = await run(backend);

@@ -1,13 +1,13 @@
 # LinkedIn Auto Poster
 
-A Vercel cron job that writes a LinkedIn post with an OpenRouter text model, renders a matching
+A Vercel cron job that writes a LinkedIn post with Google's Gemini API, renders a matching
 illustration with your image worker (the Cloudflare endpoint from `automation.py`), and publishes both
 to your LinkedIn profile.
 
 ```
 Vercel Cron (09:00 UTC daily)
   └─ GET /api/cron            bearer CRON_SECRET
-       ├─ OpenRouter          → post text + image prompt (JSON)
+       ├─ Gemini API          → post text + image prompt (JSON)
        ├─ Image worker        → PNG bytes
        ├─ LinkedIn refresh    → fresh access token
        ├─ LinkedIn Images     → initializeUpload + PUT image
@@ -67,10 +67,9 @@ cron job can run only once per day, at some point inside the scheduled hour.
 | Name | Required | Purpose |
 | --- | --- | --- |
 | `CRON_SECRET` | yes | Bearer secret that guards `/api/cron` (use `openssl rand -hex 32`). |
-| `OPENROUTER_API_KEY` | yes | OpenRouter key. |
-| `OPENROUTER_MODEL` | recommended | Model slug, e.g. `google/gemini-3.8-flash`. |
-| `OPENROUTER_MAX_TOKENS` | optional | Completion budget, default `4000`. Reasoning models spend part of it on thinking, so a small value truncates the JSON. |
-| `OPENROUTER_REASONING_EFFORT` | optional | `high`/`medium`/`low`, default `low`. Kicks in only for reasoning models; `none` turns it off where the model allows. |
+| `GEMINI_API_KEY` | yes | Your Google Gemini API key from Google AI Studio. Existing `OPENROUTER_API_KEY` settings are still accepted as a fallback. |
+| `GEMINI_MODEL` | recommended | Gemini model ID, default `gemini-3.8-flash`. Existing `OPENROUTER_MODEL` settings also work. |
+| `GEMINI_MAX_TOKENS` | optional | Gemini output token budget, default `4000`. Existing `OPENROUTER_MAX_TOKENS` settings also work. |
 | `IMAGE_API_URL` | yes | Your image worker URL (the `worker_url` from `automation.py`). |
 | `IMAGE_API_KEY` | yes | Bearer key sent to the image worker. |
 | `LINKEDIN_CLIENT_ID` | yes | From the LinkedIn app. |
@@ -113,12 +112,12 @@ cron job can run only once per day, at some point inside the scheduled hour.
   back to the pinned default when it cannot. LinkedIn supports each release for about a year, so if a
   run fails with a 426, set `LINKEDIN_API_VERSION` to a newer release (latest at build time: `202610`)
   and redeploy.
-- **Reasoning models**: models like `google/gemini-3.8-flash` always think before answering, and
+- **Reasoning models**: Gemini models like `gemini-3.8-flash` think before answering, and
   those thinking tokens are billed against `max_tokens`. With a small budget the JSON reply is cut off
-  mid-string, which shows up as `finish_reason=length` and a `did not return usable JSON` error. The
-  default budget is 4000 with `reasoning.effort: low`, and a failed parse is retried once with double
-  the budget before the run gives up.
-- **Failures**: config, OpenRouter, image and LinkedIn errors return JSON with `ok: false` and a
+  mid-string, which shows up as `finish_reason=MAX_TOKENS` and a `did not return usable JSON` error.
+  The default output budget is 4000, and a failed parse is retried once with double the budget before
+  the run gives up.
+- **Failures**: config, Gemini, image and LinkedIn errors return JSON with `ok: false` and a
   message naming the model, `finish_reason` and token usage; check Vercel → Logs for `[cron] failed`.
 - **Image formats**: the worker may return raw bytes, `{ b64_json | image | base64 }`, or `{ url }`.
 
@@ -140,7 +139,7 @@ api/cron.js              cron entry point
 api/auth/login.js        OAuth start
 api/auth/callback.js     code exchange + env values
 lib/pipeline.js          orchestration
-lib/openrouter.js        text model
+lib/gemini.js            Gemini text model client
 lib/image.js             image worker client
 lib/linkedin.js          OAuth, upload, publish
 lib/env.js lib/http.js   config and request helpers

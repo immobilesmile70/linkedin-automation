@@ -4,15 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LinkedIn Auto Poster</title>
-  <meta name="description" content="Scheduled LinkedIn posts written by OpenRouter and illustrated by your image worker." />
+  <meta name="description" content="Scheduled LinkedIn posts written with Gemini and illustrated by your image worker." />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <main>
-    <div class="eyebrow">Vercel Cron · OpenRouter · Image worker</div>
+    <div class="eyebrow">Vercel Cron · Gemini · Image worker</div>
     <h1>LinkedIn Auto Poster</h1>
     <p class="lede">
-      Once a day Vercel calls <code>/api/cron</code>. That run writes a post with the OpenRouter model,
+      Once a day Vercel calls <code>/api/cron</code>. That run writes a post with Gemini,
       renders the matching illustration through your image endpoint, then publishes both to LinkedIn.
     </p>
 
@@ -44,10 +44,9 @@
       <thead><tr><th>Name</th><th>What it is</th></tr></thead>
       <tbody>
         <tr><td><code>CRON_SECRET</code></td><td>Long random string; guards <code>/api/cron</code>.</td></tr>
-        <tr><td><code>OPENROUTER_API_KEY</code></td><td>Key for the text model.</td></tr>
-        <tr><td><code>OPENROUTER_MODEL</code></td><td>Model slug, e.g. <code>google/gemini-3.8-flash</code>.</td></tr>
-        <tr><td><code>OPENROUTER_MAX_TOKENS</code></td><td>Optional completion budget, default <code>4000</code>. Reasoning models spend part of it on thinking.</td></tr>
-        <tr><td><code>OPENROUTER_REASONING_EFFORT</code></td><td>Optional <code>high</code>/<code>medium</code>/<code>low</code>, default <code>low</code>.</td></tr>
+        <tr><td><code>GEMINI_API_KEY</code></td><td>Your Google Gemini API key. The former <code>OPENROUTER_API_KEY</code> setting is still accepted.</td></tr>
+        <tr><td><code>GEMINI_MODEL</code></td><td>Gemini model ID, default <code>gemini-3.8-flash</code>.</td></tr>
+        <tr><td><code>GEMINI_MAX_TOKENS</code></td><td>Optional Gemini output token budget, default <code>4000</code>.</td></tr>
         <tr><td><code>IMAGE_API_URL</code></td><td>Your image worker URL (the one from <code>automation.py</code>).</td></tr>
         <tr><td><code>IMAGE_API_KEY</code></td><td>Bearer key for that worker.</td></tr>
         <tr><td><code>LINKEDIN_CLIENT_ID</code></td><td>From the LinkedIn app.</td></tr>
